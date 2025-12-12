@@ -1,81 +1,168 @@
-# Trabalho Final: Mini Sistema Operacional - Controle de Alarme
+# Mini SO Alarme
+
+**Sistema de Alarme Residencial com Arquitetura Multi-Thread**
 
 **Disciplina:** Sistemas Operacionais II
-**Instituição:** [Nome da Universidade/Faculdade]
-**Data:** 12/12/2025
 
-**Integrantes do Grupo:**
-
-- [Nome do Aluno 1]
-- [Nome do Aluno 2]
-- [Nome do Aluno 3]
+**Alunos:** Carlos Eduardo Watanabe, Lucas Barbosa Antonelli, Lucas Medolla de Paula
 
 ---
 
-## 1. Descrição do Projeto
+## Descrição do Projeto
 
-Este projeto consiste na implementação de um **Mini Sistema Operacional em Espaço de Usuário**, desenvolvido em linguagem C sobre Linux. O sistema simula o funcionamento de uma central de alarme residencial, gerenciando múltiplas tarefas concorrentes, comunicação entre processos e persistência de dados.
+Mini Sistema Operacional em espaço de usuário para controle de alarme residencial, implementado em C para Linux. O sistema demonstra conceitos de:
 
-O objetivo é demonstrar a aplicação prática dos seguintes conceitos:
-
-- **Multithreading:** Execução concorrente de tarefas (monitoramento, interface, núcleo).
-- **Sincronização:** Uso de Mutexes e Variáveis de Condição para evitar condições de corrida.
-- **IPC (Inter-Process Communication):** Comunicação entre threads via memória compartilhada e filas de mensagens.
-- **Sistema de Arquivos:** Persistência de logs e leitura de configurações.
+- **Multi-threading** com POSIX threads
+- **Sincronização** com Mutexes e Condition Variables
+- **Comunicação IPC** via fila de eventos em memória compartilhada
+- **Sistema de Arquivos** para configuração e logging
 
 ---
 
-## 2. Arquitetura do Sistema
+## Arquitetura
 
-O sistema foi arquitetado utilizando a biblioteca **POSIX Threads (pthreads)** e está dividido em 4 módulos de execução principais:
+### Threads do Sistema
 
-### 2.1. Tarefas (Threads)
+| Thread        | Tipo       | Descrição                                     |
+| ------------- | ---------- | --------------------------------------------- |
+| **Core**      | Reativa    | Processa eventos e gerencia estados do alarme |
+| **Monitor**   | Periódica  | Verifica sensores e controla sirene           |
+| **Interface** | Interativa | Recebe comandos do usuário via CLI            |
 
-| Thread          | Tipo       | Responsabilidade                                                                                                 |
-| :-------------- | :--------- | :--------------------------------------------------------------------------------------------------------------- |
-| **`Core`**      | Reativa    | Núcleo do sistema. Processa eventos da fila, gerencia a máquina de estados (ARMED/DISARMED) e toma decisões.     |
-| **`Monitor`**   | Periódica  | Simula o hardware. Verifica o estado dos sensores em intervalos definidos e mantém a sirene ativa se necessário. |
-| **`Interface`** | Interativa | Gerencia a entrada do usuário (CLI) e envia comandos para o núcleo.                                              |
-| **`Logger`**    | Serviço    | Garante a escrita thread-safe de eventos no arquivo de log.                                                      |
+### Organização da Aplicação
 
-### 2.2. Sincronização e Comunicação
+![alt text](image.png)
 
-- **Fila de Eventos:** Implementada como um buffer circular em memória compartilhada. A Interface e o Monitor agem como _produtores_ e o Core como _consumidor_.
-- **Mutex (`pthread_mutex_t`):**
-  - `queue_mutex`: Protege o acesso à fila de eventos.
-  - `state_mutex`: Protege o estado global do sistema e o array de sensores.
-  - `log_mutex`: Garante exclusão mútua na escrita do arquivo de log.
-- **Variável de Condição (`pthread_cond_t`):** Utilizada pelo `Core` para aguardar novos eventos sem consumir CPU (_sleep_ eficiente), sendo sinalizado pelas outras threads.
+### Comunicação do Sistema
 
----
+![alt text](image-1.png)
 
-## 3. Estrutura dos Arquivos
+### Sincronização
 
-O código-fonte está organizado da seguinte forma:
-
-- **`main.c`**: Ponto de entrada. Inicializa as threads, carrega configurações e realiza a limpeza de memória ao sair.
-- **`globals.h`**: Definições globais, estruturas de dados (fila, eventos) e variáveis de sincronização extern.
-- **`core.c/.h`**: Lógica principal da máquina de estados.
-- **`monitor.c/.h`**: Lógica de simulação dos sensores e temporização.
-- **`interface.c/.h`**: Interface de linha de comando (CLI).
-- **`logger.c/.h`**: Funções de escrita em arquivo (`log.txt`).
-- **`Makefile`**: Script para automação da compilação.
-- **`config.txt`**: Arquivo de configuração editável.
+- **3 Mutexes**: `state_mutex`, `queue_mutex`, `log_mutex`
+- **1 Condition Variable**: `queue_cond` (notificação de eventos)
+- **Fila FIFO Circular**: 10 slots para eventos
 
 ---
 
-## 4. Instruções de Compilação e Execução
+## Compilação
 
 ### Pré-requisitos
 
-- Sistema Operacional Linux (ou WSL).
-- Compilador GCC instalado.
-- Utilitário Make (opcional).
+- Linux (ou WSL)
+- GCC
+- Make
 
-### Compilando
-
-Abra o terminal na pasta do projeto e execute:
+### Comandos
 
 ```bash
+# Compilar
 make
+
+# Compilar e executar
+make run
+
+# Limpar arquivos compilados
+make clean
 ```
+
+---
+
+## Como Usar
+
+### Iniciar
+
+```bash
+./alarme_so
+```
+
+### Comandos Disponíveis
+
+| Comando | Descrição |
+|-------------- ''''''''''''''''''''''''''''''-----|------------------------------------|
+| `status` | Mostra estado do sistema |
+| `arm <senha>` | Arma o alarme (senha: 1234) |
+| `disarm <senha>` | Desarma o alarme |
+| `sensor <id>` | Simula sensor (0=porta, 1=janela, 2=movimento) |
+| `exit` | Encerra o sistema |
+
+### Exemplo de Uso
+
+```bash
+$ ./alarme_so
+--- Mini SO Alarme Iniciado ---
+Comandos: arm <senha>, disarm <senha>, sensor <id>, status, exit
+
+> status
+Estado: 0 (0=OFF, 1=ARM, 2=TRIG)
+Sensores: [0]=0, [1]=0, [2]=0
+
+> arm 1234
+> status
+Estado: 1 (0=OFF, 1=ARM, 2=TRIG)
+
+> sensor 0
+!!! SIRENE TOCANDO !!!
+
+> disarm 1234
+> exit
+```
+
+---
+
+## Configuração
+
+Edite `config/config.txt`:
+
+```
+INTERVAL=3
+PASSWORD=1234
+```
+
+- **INTERVAL**: Segundos entre verificações do monitor
+- **PASSWORD**: Senha numérica do sistema
+
+---
+
+## Estados do Sistema
+
+| Estado    | Código | Descrição                      |
+| --------- | ------ | ------------------------------ |
+| DISARMED  | 0      | Sistema desligado              |
+| ARMED     | 1      | Sistema armado, monitorando    |
+| TRIGGERED | 2      | Alarme disparado, sirene ativa |
+
+---
+
+## Logging
+
+Todos eventos são registrados em `log.txt`:
+
+```
+[Fri Dec 12 00:10:55 2025] Sistema Iniciando...
+[Fri Dec 12 00:10:55 2025] COMANDO: Sistema ARMADO.
+[Fri Dec 12 00:10:55 2025] SENSOR: Sensor 0 mudou para 1
+[Fri Dec 12 00:10:55 2025] ALERTA: ALARME DISPARADO POR SENSOR!
+```
+
+---
+
+## Conceitos de SO Aplicados
+
+- ✅ Processos e Threads (pthreads)
+- ✅ Programação Concorrente
+- ✅ Sincronização (Mutex, Condition Variables)
+- ✅ Comunicação entre Threads (Fila FIFO)
+- ✅ Sistema de Arquivos (config + log)
+- ✅ Escalonamento Cooperativo
+
+---
+
+## Documentação
+
+- [README.md](README.md) - Este arquivo
+- [RELATORIO.md](RELATORIO.md) - Relatório técnico completo (6 páginas)
+
+---
+
+**Última atualização:** 12/12/2025

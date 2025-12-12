@@ -22,7 +22,7 @@ int queue_head = 0;
 int queue_tail = 0;
 
 void load_config() {
-    FILE *f = fopen("config.txt", "r");
+    FILE *f = fopen("config/config.txt", "r");
     if (f) {
         fscanf(f, "INTERVAL=%d\n", &config_sensor_interval);
         fscanf(f, "PASSWORD=%d\n", &config_password);
